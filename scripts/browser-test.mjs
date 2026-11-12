@@ -1,0 +1,52 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {PREFECTURES} from '../src/domain/statistics.js';
+// This CSV is deliberately synthetic. Never distribute it as a statistics sample.
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+const page=await browser.newPage({viewport:{width:1440,height:1100},deviceScaleFactor:1});
+const errors=[];page.on('pageerror',error=>errors.push(error.message));
+await mkdir('artifacts',{recursive:true});
+try{
+  await page.goto(process.env.TEST_URL||'http://127.0.0.1:8000');
+  await assert.equal(await page.locator('#download').isDisabled(),true);
+  await page.screenshot({path:'artifacts/empty-state.png',fullPage:true});
+  const csv='都道府県,収穫量,出荷量\n全国,1200,1\n'+PREFECTURES.map((name,i)=>`${name},${47-i},0`).join('\n');
+  await page.locator('#csv-file').setInputFiles({name:'SYNTHETIC-TEST-ONLY.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await page.locator('#area-column').selectOption('0');await page.locator('#value-column').selectOption('1');
+  for(const [name,value] of Object.entries({item:'合成テスト用（公式統計ではない）',year:'2000',unit:'t',statistic:'ブラウザ検証の合成入力',tableId:'synthetic-test-only',sourceUrl:'https://www.maff.go.jp/'}))await page.locator(`[name="${name}"]`).fill(value);
+  await page.locator('#confirm-source').check();await page.locator('#import-form [type=submit]').click();
+  await page.waitForFunction(()=>!document.getElementById('download').disabled);
+  assert.equal(await page.locator('#data-body tr').count(),48);
+  assert.equal(await page.locator('#data-body tr').first().locator('td').nth(2).textContent(),'47');
+  assert.equal(await page.locator('#data-body tr').first().locator('td').nth(3).textContent(),'3.9%');
+  assert.equal(await page.locator('#data-body tr').last().locator('td').nth(2).textContent(),'975');
+  await page.locator('[data-top="3"]').click();
+  assert.equal(await page.locator('#data-body tr.shown').count(),3);
+  assert.equal(await page.locator('#data-body tr').last().locator('td').nth(2).textContent(),'1,062');
+  await page.locator('[data-top="10"]').click();
+  assert.equal(await page.locator('#data-body tr.shown').count(),10);
+  assert.equal(await page.locator('#data-body tr').last().locator('td').nth(2).textContent(),'775');
+  for(const background of ['white','transparent']) {
+    await page.locator('#background').selectOption(background);
+    const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#download').click()]);
+    await download.saveAs(`artifacts/${background}.png`);
+    const bytes=await (await import('node:fs/promises')).readFile(await download.path());
+    const decoded=await page.evaluate(async base64=>{
+      const img=new Image();img.src=`data:image/png;base64,${base64}`;await img.decode();
+      const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+      return {width:img.width,height:img.height,pixel:[...ctx.getImageData(0,0,1,1).data]};
+    },bytes.toString('base64'));
+    assert.equal(decoded.width,3200);assert.ok(decoded.height>1600);
+    assert.deepEqual(decoded.pixel,background==='white'?[255,255,255,255]:[0,0,0,0]);
+  }
+  await page.locator('#title').fill('長いタイトルの折り返しと最大文字サイズの確認。'.repeat(5));await page.locator('#font-size').fill('40');
+  await page.screenshot({path:'artifacts/synthetic-chart-test.png',fullPage:true});
+  const [jsonDownload]=await Promise.all([page.waitForEvent('download'),page.locator('#save-data').click()]);
+  const saved=JSON.parse(await (await import('node:fs/promises')).readFile(await jsonDownload.path(),'utf8'));
+  assert.equal(saved.national,1200);assert.equal(saved.chart.series.at(-1).value,775);assert.equal(saved.import.sha256.length,64);
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.deepEqual(errors,[]);
+  console.log('Browser PASS: import, 47 rows, national denominator, top 3/5/10, PNG 3200px, white/transparent pixels, JSON provenance, mobile. Synthetic inputs only.');
+}finally{await browser.close();}

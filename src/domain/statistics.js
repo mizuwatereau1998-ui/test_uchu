@@ -20,7 +20,9 @@ export function validateDataset(data) {
     names.add(row.name);
     if (!Number.isFinite(row.value) || row.value < 0) fail(`${row.name} の収穫量が欠測または非数値です。推測による補完はしません。`);
   }
-  if (names.size !== 47) fail(`都道府県データは ${names.size}/47 件です。欠測の順位を推測できないため描画しません。`);
+  if (data.coverage?.type === 'published-subset') {
+    if (!Number.isInteger(data.coverage.count) || names.size !== data.coverage.count || names.size < 10 || !data.coverage.note?.trim()) fail('公表地域の件数・範囲情報が不正です。');
+  } else if (names.size !== 47) fail(`都道府県データは ${names.size}/47 件です。欠測の順位を推測できないため描画しません。`);
   const sum = data.rows.reduce((s,r)=>s+r.value,0);
   if (sum > data.national) fail('都道府県合計が全国値を超えています。単位・項目・年次を確認してください。');
   return data;
@@ -35,3 +37,5 @@ export function makePieSeries(data, topN = 5) {
 }
 export const formatPercent = value => `${(Math.round((value + Number.EPSILON * Math.max(1,value)) * 10) / 10).toFixed(1)}%`;
 export const formatNumber = value => new Intl.NumberFormat('ja-JP',{maximumFractionDigits:20}).format(value);
+
+export const coverageLabel = data => data.coverage?.type === 'published-subset' ? `公表${data.rows.length}地域内の上位。未掲載地域・丸め差はその他に含む（未掲載を0にしない）。` : '47都道府県の収穫量';

@@ -1,4 +1,4 @@
-import {formatPercent,formatNumber} from '../domain/statistics.js';
+import {formatPercent,formatNumber,coverageLabel} from '../domain/statistics.js';
 export const PALETTES = {
   textbook:['#326b62','#7eab91','#d7b45a','#cc8264','#7195b5','#a48cab','#a6bb7b','#d49cba','#7eaaa6','#b6a089','#d9ded8'],
   blue:['#214f80','#4276a4','#6795bf','#8fb2d1','#b5cde1','#6f82ae','#8098b2','#a3b2c4','#bec9d4','#d2dae2','#e0e5eb'],
@@ -21,7 +21,7 @@ export function renderPie(canvas, data, series, options={}) {
   const headerHeight=80+titles.length*fontSize*2+(subtitleLines.length-1)*fontSize*1.4;
   const source=`出典：${data.publisher}「${data.statistic}」／表ID：${data.tableId}`;
   scratch.font=font(fontSize*.65);
-  const footLines=[...wrap(scratch,source,width-margin*2),...wrap(scratch,data.sourceUrl,width-margin*2),...wrap(scratch,'割合は全国値を分母に小数第1位で四捨五入。「その他」＝全国値−表示した都道府県の収穫量合計。',width-margin*2)];
+  const footLines=[...wrap(scratch,coverageLabel(data),width-margin*2),...wrap(scratch,source,width-margin*2),...wrap(scratch,data.sourceUrl,width-margin*2),...wrap(scratch,'割合は全国値を分母に小数第1位で四捨五入。「その他」＝全国値−表示した都道府県の収穫量合計。',width-margin*2)];
   const bodyHeight=Math.max(720,series.length*(fontSize*2.1)+60);
   const height=headerHeight+bodyHeight+footLines.length*fontSize*.95+110;
   canvas.width=Math.round(width*scale); canvas.height=Math.round(height*scale);

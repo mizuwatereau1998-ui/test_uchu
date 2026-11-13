@@ -1,0 +1,30 @@
+{
+  "item": "みかん",
+  "year": "2024",
+  "unit": "t",
+  "publisher": "農林水産省",
+  "metric": "収穫量",
+  "publicationStatus": "確報",
+  "statistic": "作物統計調査 作況調査（果樹） 令和6年産果樹生産出荷統計",
+  "tableTitle": "令和６年産都道府県別の結果樹面積・10a当たり収量・収穫量・出荷量 みかん 計",
+  "tableId": "0004046674",
+  "statInfId": "000040387931",
+  "sourceUrl": "https://www.e-stat.go.jp/dbview?sid=0004046674",
+  "publishedAt": "2026-03-31",
+  "coverage": {
+    "type": "published-subset",
+    "count": 20,
+    "note": "原表掲載20府県内の上位。未掲載27都道府県の数値・順位は推測しない。「その他」は未掲載地域分と公表値の丸め差も含む。"
+  },
+  "provenance": {
+    "originalUrl": "https://www.e-stat.go.jp/stat-search/file-download?statInfId=000040387931&fileKind=0",
+    "maffUrl": "https://www.maff.go.jp/j/tokei/kouhyou/sakumotu/sakkyou_kazyu/",
+    "listUrl": "https://www.e-stat.go.jp/stat-search/files?page=1&layout=datalist&lid=000001473248",
+    "originalFile": "mikan-2024-source.xlsx",
+    "originalSha256": "b3a8278281c33e3448d575d4cbf9bef2bfddfa652d4203660be2ae239d868c00",
+    "csvFile": "mikan-2024.csv",
+    "csvSha256": "f8aac4c2cc7dcac8bac320f2995caea9bda21983c7937209bd166663a6b5924b",
+    "retrievedAt": "2026-11-12T02:58:31.216254+00:00",
+    "extraction": "sheet1: G12全国、G14:G33収穫量。B12/C14:C33地域名。G11「ｔ」をtに正規化。出荷量H列を使わない。"
+  }
+}

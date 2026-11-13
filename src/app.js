@@ -1,6 +1,7 @@
+import {loadMikan,importVerifiedMikanCSV} from './data/mikan.js';
 import {parseCSV} from './data/csv.js';
 import {readCSVFile,importOfficialCSV} from './data/import.js';
-import {makePieSeries,formatPercent,formatNumber,PREFECTURES} from './domain/statistics.js';
+import {makePieSeries,formatPercent,formatNumber,PREFECTURES,coverageLabel} from './domain/statistics.js';
 import {renderPie,PALETTES} from './charts/pie.js';
 const $=id=>document.getElementById(id);
 let dataset=null,topN=5,rawText='',fileSequence=0;
@@ -17,7 +18,8 @@ function render() {
   $('export-info').textContent=`出典・統計年・単位を含む / ${dimensions.width} × ${dimensions.height} px`;
   $('preview').hidden=false;$('empty-state').hidden=true;
   $('download').disabled=false;$('save-data').disabled=false;
-  $('validation-status').textContent='全国値・47都道府県の数値を検証済み';
+  $('validation-status').textContent=`全国値・公表${dataset.rows.length}地域の数値を検証済み`;
+  $('notice').textContent=coverageLabel(dataset);
   $('display-year').value=`${dataset.year}年産`;
   $('item').replaceChildren(new Option(dataset.item,dataset.item));
   $('metadata').replaceChildren();
@@ -30,12 +32,17 @@ function render() {
     const tr=document.createElement('tr');if(index<topN)tr.className='shown';
     for(const text of [String(index+1),row.name,formatNumber(row.value),formatPercent(row.value/dataset.national*100),index<topN?'個別表示':'その他に集計']){const td=document.createElement('td');td.textContent=text;tr.append(td);}return tr;
   }));
+  for(const name of PREFECTURES.filter(name=>!dataset.rows.some(r=>r.name===name))) {
+    const missing=document.createElement('tr');
+    for(const text of ['—',name,'未掲載','—','0に置き換えない']){const td=document.createElement('td');td.textContent=text;missing.append(td);}
+    $('data-body').append(missing);
+  }
   const other=series.at(-1),tr=document.createElement('tr');
   for(const text of ['—','その他（グラフの集約値）',formatNumber(other.value),formatPercent(other.percent),'全国 − 上位合計']){const td=document.createElement('td');td.textContent=text;tr.append(td);}
   $('data-body').append(tr);$('quantity-header').textContent=`収穫量（${dataset.unit}）`;
   $('data-table').hidden=false;$('data-empty').hidden=true;
   const sum=dataset.rows.reduce((s,r)=>s+r.value,0);
-  $('sum-note').textContent=`都道府県合計：${formatNumber(sum)} ${dataset.unit} ／ 全国値との差：${formatNumber(dataset.national-sum)} ${dataset.unit}。ファイルの出典・選択項目は取り込み時の利用者確認に基づきます。`;
+  $('sum-note').textContent=`公表県合計：${formatNumber(sum)} ${dataset.unit} ／ 全国値との差：${formatNumber(dataset.national-sum)} ${dataset.unit}。${dataset.coverage?.note||'ファイルの出典・選択項目は取り込み時の利用者確認に基づきます。'}`;
 }
 $('top-controls').addEventListener('click',e=>{
   const button=e.target.closest('[data-top]');if(!button)return;topN=Number(button.dataset.top);
@@ -85,3 +92,9 @@ $('import-form').addEventListener('submit',async e=>{
   } catch(error) {$('import-error').textContent=`取り込めません：${error.message}${dataset?' 現在の図版は前回成功した取り込みのままです。':''}`;}
 });
 render();
+
+function useMikan(data){dataset=data;$('title').value='みかんの都道府県別収穫量';render();message(`2024年産みかん確報：${coverageLabel(data)} 原表との照合済み。`);}
+$('load-mikan').addEventListener('click',async()=>{message('みかんの公式データを確認しています…');try{useMikan(await loadMikan());}catch(error){message(error.message);}});
+$('mikan-csv-file').addEventListener('change',async e=>{
+  try{const file=e.target.files[0];if(!file)return;message('みかんCSVを確認しています…');if(file.size>1024*1024)throw new Error('検証済みの抽出CSVを選んでください。');const response=await fetch('./data/mikan-2024.json');if(!response.ok)throw new Error('出典情報を読み込めません。');const data=await importVerifiedMikanCSV(new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(await file.arrayBuffer()),await response.json());useMikan(data);}catch(error){message(`みかんCSVを取り込めません：${error.message}`);}
+});
